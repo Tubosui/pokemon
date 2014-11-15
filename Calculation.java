@@ -1,22 +1,21 @@
-package jp.tubosi;
 
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static java.lang.Integer.parseInt;;
+import static java.lang.Integer.parseInt;
+
 class Calculation{
-	double[][] kk =new double[4][];
-	double[][] l = new double[4][];
+	double[][] kk =new double[4][];//補正のための配列（攻撃、防御、技の威力、壁等の補正）
+	double[][] l = new double[4][];//全体計算の時のための配列
 	String[] pName,kabe,asobi;
 	String wazaName,ApItem,BpItem,ApTokusei,BpTokusei,yakedo,sakidori,kyusyo,Field;
 	int wazaType,WazaIryoku,buturi,Aplv,ApNouryokuti,ApRank,HP,BpNouryokuti_B,BpRank,tenko,sinkamae,wazakouka;
 	int[] type_A,type_B;
 	boolean oyakoai=false;
 	double R= 0.84;
-	static String[] ty = {"普","格","炎","水","草","電","岩","地","飛","毒","虫","超","霊","竜","氷","鋼","悪","妖"}; 
-	public class ATW{
+	public class ATW{//瀕死になる攻撃回数と確定か乱数かを保持するラッパークラス。
 		public boolean kakutei=false;
 		public int a_times;
 	}
@@ -75,7 +74,7 @@ class Calculation{
      public String[] Result(){//これを呼び出せば答えが返る。
     	getKeisan();
     	int[] damageR = calculate();
-    	if(oyakoai){//親子愛
+    	if(oyakoai){//親子愛補正
     		int dpc[]=new int[256];
     		l[3][2]=0.5;
     		kk[2][1]=0.84;
@@ -96,10 +95,6 @@ class Calculation{
     String[] getResult(int[] damages) throws StackOverflowError{
     	//ダメージパターンの配列を受け取ってダメージ、確定数をStringの配列で返す。
     	//String[] ANS={防御側のHP,ダメージの最小値、ダメージの最大値、乱数か否か、攻撃回数、[乱数の場合は瀕死になる確率、そうでないときは""]};
-    	if(damages[damages.length-1]==0){
-    		String[] ans ={(""+HP),"0","0","","無限","",Integer.toString((int)(Math.floor(HP*l[2][0]/60)))};
-    		return ans;
-    	};
     	Map<Integer,Integer> dd = new HashMap<Integer,Integer>();
 		for(int i=0;i<damages.length;i++){
 			dd.put(damages[i],0);
@@ -107,7 +102,8 @@ class Calculation{
 		for(int i=0;i<damages.length;i++){
 			dd.put(damages[i],dd.get(damages[i])+1);
 		}
-		ATW a = getAttackTimes(damages[damages.length-1],damages[0],1);
+		ATW a = null;
+		try{a = getAttackTimes(damages[damages.length-1],damages[0],1);}catch(Exception e){String[] ex = {e.getMessage(),""};return ex;};
 		String[] ANS =new String[7];
 		int c=0;
 		ANS[c++] = Integer.toString(HP);//HPを記録
@@ -129,11 +125,13 @@ class Calculation{
 		}else{
 			ANS[c++]="確定";ANS[c++]=Integer.toString(a.a_times);ANS[c++]="";
 		}
-		double pk = HP*l[2][0]/60;
+		double pk = HP*l[2][0]/60;//記録したHPと防御能力値でピィ指数を出す。
 		ANS[c++]=Integer.toString((int)(Math.floor(pk)));
     	return ANS;
     }
-	protected void getKeisan(){
+
+
+	protected void getKeisan(){　//フィールドの配列に補正値を入力するメソッド
 		double rank_A = (double)(Math.max(ApRank,0)+2)/(Math.abs((Math.min(ApRank,0)))+2);
 		double rank_B = (double)(Math.max(BpRank,0)+2)/(Math.abs((Math.min(BpRank,0)))+2);
 		
@@ -202,9 +200,9 @@ class Calculation{
 		getAisyou();//相性判定●
 		doHosei(ApTokusei);doHosei(BpTokusei);//特性補正
 		doHosei(ApItem);doHosei(BpItem);//アイテム補正
-		//いよいよ計算！
 	}
-	int[] calculate(){
+
+	int[] calculate(){//フィールドの配列を掛け合わせてダメージを計算するメソッド。
 		int ans[] = new int[16];
 		for(int i=0;i<l.length;i++){
 			double hosei =1;
@@ -217,7 +215,7 @@ class Calculation{
 				l[i][0]=Math.ceil(l[i][1]*hosei-0.5);//配列の使い方について再考の余地あり！！！！！！！！！！！！！！！！！！！
 			}
 		}
-		kk[0][1]=l[0][0];kk[0][2]=l[1][0];kk[0][3]=1/l[2][0];kk[3][2]=l[3][0];
+		kk[0][1]=l[0][0];kk[0][2]=l[1][0];kk[0][3]=1/l[2][0];kk[3][2]=l[3][0];//威力、攻撃力、防御力、壁補正などを全体計算の配列に代入。
 		for(int h=0;h<ans.length;h++){
 			int subans=1; 
 			kk[2][1]+=0.01;
@@ -233,9 +231,9 @@ class Calculation{
 		return ans;
 	}
 	
-	void doHosei(String s){
+	void doHosei(String s){//補正配列l（エル）に補正値を代入するメソッド（文字列は数列：02010826など）
 		if(s.equals("N"))return;
-		int result =getHosei(s.substring(2,s.length()));
+		int result =getHosei(s.substring(2,s.length()));//補正値を取得
 		if(result==-5) return;
 		l[parseInt(""+s.charAt(0))][parseInt(""+s.charAt(1))]=result*0.05;
 	}
@@ -250,14 +248,14 @@ class Calculation{
 	
 	void getAisyou(){//タイプ相性を調べるメソッド
 		if(wazaType<0 || type_B[0]==-1) {kk[3][0]=1;return;}
-		double aisyou_d =(double)aisyou[wazaType][type_B[0]]*0.1;
+		double aisyou_d =aisyou[wazaType][type_B[0]]*0.1;
 		if(type_B[1]!=-1){
-			aisyou_d*=((double)aisyou[wazaType][type_B[1]]*0.1);
+			aisyou_d*=(aisyou[wazaType][type_B[1]]*0.1);
 		}
 		kk[3][0]=aisyou_d;
 	}
 	
-	int getHosei(String s){
+	int getHosei(String s){//補正値を取得するメソッド（基本的に数列を分解しながら分岐することで補正値を返している）
 		int c=0;
 		switch (s.charAt(c++)){
 			case '0':
@@ -293,7 +291,7 @@ class Calculation{
 			case '2':
 				switch(s.charAt(c++)){
 				case '0':kk[2][2]=1.5; return -5;//変幻自在
-				case '1':if(kk[3][0]<1) return 40;//こっちで入れるかむこうでいれるか　いろめがね
+				case '1':if(kk[3][0]<1) return 20;//こっちで入れるかむこうでいれるか　いろめがね
 					   else return -5;
 				case '2':if(kk[3][0]>1) return parseInt(s.substring(c,c+2));//ハードロック・フィルター・達人の帯 半減実
 					   else return -5;
@@ -337,6 +335,8 @@ class Calculation{
 		
 		}
 	public int getProbability(int HP,Map<Integer,Integer> m,int[] damagea,int t){
+　　　　　　　　　//乱数の場合に瀕死になる確率(分子のみ)を求めるメソッドで、実際シミュレーションした結果を返す。
+　　　　　　　　　//mにはそのダメージになる確率(分子のみ)が格納されており、それを掛けることで実際の数値を出す。
 		if(HP<=0) return 1;
 		if(t<1) return 0;
 		int ans=0;
@@ -345,11 +345,11 @@ class Calculation{
 		}
 		return ans;
 	}
-	public ATW getAttackTimes(int max,int min,int t) throws StackOverflowError{
+	public ATW getAttackTimes(int max,int min,int t) throws StackOverflowError{//瀕死になるための攻撃回数と、確定か乱数かを求める。
 		if(HP-max*t<=0){
-			ATW ans = new ATW();
-			ans.a_times=t;
-			if(HP-min*t<=0)ans.kakutei=true;
+			ATW ans = new ATW();//ラッパークラスを返す。
+			ans.a_times=t;//瀕死になる為に必要な攻撃回数
+			if(HP-min*t<=0)ans.kakutei=true;//(ダメージの最小値)×(攻撃回数)でも体力が0になった場合、確定で瀕死になることになる
 			return ans;
 		}
 		return getAttackTimes(max,min,t+1);
