@@ -1,0 +1,53 @@
+@CHARSET "UTF-8";
+*{
+	margin:2px;
+}
+div{
+	padding:2px;
+}
+#dez{
+	float:left;
+	width:912px;
+}
+#Ap{
+	width:48%;
+	float:left;
+	background-color:orange;
+}
+#Bp{
+	width:48%;
+	float:right;
+	background-color:greenyellow;
+	/*outline:solid 1px blue;*/
+}
+#exe{
+	width:912px;
+	clear:both;
+	text-align:center;
+}
+#exe input{
+	align:center;
+}
+#pn1{
+	clear:both;
+	float:left;
+	width:912px;
+	height:200px;
+}
+#ba{
+	float:left;
+	background-color:deepskyblue;
+	width:48%;
+}
+#result{
+	background-color:#ffff00;
+	float:right;
+	width:48%;
+	font:14px/100% serif;
+}
+p{
+	font:14px/150% monospace;
+}
+#pn2{
+	clear:both;
+}
